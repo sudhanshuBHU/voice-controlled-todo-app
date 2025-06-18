@@ -73,3 +73,4 @@ Built with ❤️ using Next.js and modern web technologies.
 
 **Sudhanshu Shekhar**  
 Email: [sudhanshu007@bhu.ac.in](mailto:sudhanshu007@bhu.ac.in)
+LinkedIn: [Link to profile](https://www.linkedin.com/in/sudhanshu-shekhar-7979b2214/)
