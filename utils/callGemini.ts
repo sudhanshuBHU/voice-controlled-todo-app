@@ -1,7 +1,15 @@
 import { geminiPrompt } from '@/utils/geminiPrompt';
+import { geminiPromptForFilter, geminiPromptForSearch, geminiPromptForSort } from '@/utils/geminiPrompt';
 
-async function callGemini(text: string) {
-    const prompt = geminiPrompt(text);
+async function callGemini(text: string, type: 'command' | 'filter' | 'search' | 'sort') {
+    let prompt = '';
+    switch (type) {
+        case 'command': prompt = geminiPrompt(text); break;
+        case 'filter': prompt = geminiPromptForFilter(text); break;
+        case 'search': prompt = geminiPromptForSearch(text); break;
+        case 'sort': prompt = geminiPromptForSort(text); break;
+    }
+    // const prompt = geminiPrompt(text);
     const body = {
         contents: [{
             "parts": [{ "text": prompt }]
