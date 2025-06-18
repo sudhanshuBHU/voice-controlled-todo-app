@@ -87,11 +87,13 @@ export default function Home() {
     // add todo
     if (intendedTodo.intent === 'AddTodo') {
 
-      setTodos([...todos, intendedTodo]);
+      const newTodo: Todo[] = [...todos, intendedTodo];
+      // console.log("adding todo", newTodo);
+      setTodos(newTodo);
+      setBackupTodos(newTodo);
       addLog(`✅ Added task: "${intendedTodo.task}"`);
       speak(`Added task: ${intendedTodo.task}`);
       setStack([...stack, { event: 'AddTodo', todo: intendedTodo }]);
-      setBackupTodos([...todos, intendedTodo]);
       return;
     } else if (intendedTodo.intent === 'DeleteTodo') {  // delete todo
       // console.log("deleting todo", intendedTodo);
@@ -106,6 +108,8 @@ export default function Home() {
         }
 
         const temp = todos.filter((todo) => todo.task.toLocaleLowerCase() !== intendedTodo.task.toLocaleLowerCase());
+        // console.log('after deletion: ', temp);
+
         setTodos(temp);
         setBackupTodos(temp);
         addLog(`🗑️ Deleted task: "${intendedTodo.task}"`);
@@ -129,8 +133,9 @@ export default function Home() {
         intendedTodo.deleteIndex = todos.length + intendedTodo.deleteIndex;
       }
 
-      setTodos(todos.filter((_, index) => index !== intendedTodo.deleteIndex));
-      setBackupTodos(todos.filter((_, index) => index !== intendedTodo.deleteIndex));
+      const updatedTodos = todos.filter((_, index) => index !== intendedTodo.deleteIndex);
+      setTodos(updatedTodos);
+      setBackupTodos(updatedTodos);
       addLog(`🗑️ Deleted task: "${todos[intendedTodo.deleteIndex].task}"`);
       speak(`Deleted task: ${todos[intendedTodo.deleteIndex].task}`);
 
@@ -153,8 +158,12 @@ export default function Home() {
         }
 
         const temp = todos.filter((todo) => todo.task.toLocaleLowerCase() !== intendedTodo.previousTask?.toLocaleLowerCase());
-        setTodos([...temp, intendedTodo]);
-        setBackupTodos([...temp, intendedTodo]);
+
+        const updatedTodo = [...temp, intendedTodo];
+        // console.log('after update: ', updatedTodo);
+
+        setTodos(updatedTodo);
+        setBackupTodos(updatedTodo);
         addLog(`✅ Updated task: "${intendedTodo.task}"`);
         speak(`Updated task: ${intendedTodo.task}`);
         setStack([...stack, { event: 'UpdateTodo', todo: intendedTodo, prev: tempTodo }]);
@@ -174,9 +183,13 @@ export default function Home() {
         intendedTodo.updateIndex = todos.length + intendedTodo.updateIndex;
       }
       setStack([...stack, { event: 'UpdateTodo', todo: intendedTodo, prev: todos[intendedTodo.updateIndex] }]);
+
       const temp = todos.filter((_, index) => index !== intendedTodo.updateIndex);
-      setTodos([...temp, intendedTodo]);
-      setBackupTodos([...temp, intendedTodo]);
+      const updatedTodo = [...temp, intendedTodo];
+      // console.log('after update: ', updatedTodo);
+
+      setTodos(updatedTodo);
+      setBackupTodos(updatedTodo);
       addLog(`✏️ Updated task: "${intendedTodo.task}"`);
       speak(`Updated task: ${intendedTodo.task}`);
 
@@ -260,12 +273,16 @@ export default function Home() {
   }
 
   const handleSearchTodos = (query: string) => {
+
     if (!query) {
       addLog('❌ No search query provided.');
       speak('No search query provided.');
       return;
     }
+
+
     const results = searchTodos(todos, query);
+
     if (results.length === 0) {
       addLog(`🔍 No tasks found for query: "${query}"`);
       speak(`No tasks found for query: ${query}`);
@@ -285,9 +302,10 @@ export default function Home() {
       speak('No todos to restore.');
       return;
     }
+
     setTodos(temp);
-    addLog('✅ Restored all todos from backup.');
-    speak('Restored all todos from backup.');
+    addLog('✅ Restored all todos.');
+    speak('Restored all todos.');
   }
 
   const handleFilterTodos = (filter: Filter) => {
@@ -305,6 +323,8 @@ export default function Home() {
 
   const handleSortTodos = (criteria: string, asc: boolean) => {
     const results = sortTodos(todos, criteria, asc);
+    console.log('Sorted Results:', results);
+
     if (results.length === 0) {
       addLog(`🔍 No tasks found for this criteria.`);
       speak(`No tasks found for this criteria.`);
@@ -335,7 +355,7 @@ export default function Home() {
 
     recognition.onresult = async (event: SpeechRecognitionEvent) => {
       setWorking(true);
-      const transcript = event.results[0][0].transcript;
+      const transcript = event.results[0][0].transcript.replace('I\'m listening', '').trim();
       addLog(`🗣 "${transcript}"`);
 
       // check if undo is requested
@@ -375,14 +395,15 @@ export default function Home() {
       //  handle search request
       if (transcript.toLocaleLowerCase().includes('search') || transcript.toLocaleLowerCase().includes('find')) {
         const searchData = await callGemini(transcript, 'search');
-        const searchQuery: Search = searchData.candidates[0].content.parts[0].text.replaceAll('`', '').replace('json', '');
+        const searchQuery: Search = JSON.parse(searchData.candidates[0].content.parts[0].text.replaceAll('`', '').replace('json', ''));
+
         handleSearchTodos(searchQuery.query);
         setWorking(false);
         return;
       }
 
       //  handle filter request
-      if (transcript.toLocaleLowerCase().includes('filter') || transcript.toLocaleLowerCase().includes('sort')) {
+      if (transcript.toLocaleLowerCase().includes('filter')) {
         const filterData = await callGemini(transcript, 'filter');
         const filterCriteria: Filter = JSON.parse(filterData.candidates[0].content.parts[0].text.replaceAll('`', '').replace('json', ''));
         handleFilterTodos(filterCriteria);
@@ -394,8 +415,14 @@ export default function Home() {
       if (transcript.toLocaleLowerCase().includes('sort') || transcript.toLocaleLowerCase().includes('order')) {
         const sortData = await callGemini(transcript, 'sort');
         const sortCriteria: Sort = JSON.parse(sortData.candidates[0].content.parts[0].text.replaceAll('`', '').replace('json', ''));
+
+        console.group('Sort Criteria');
+        console.log('Criteria:', sortCriteria);
+
         handleSortTodos(sortCriteria.criteria, sortCriteria.asc);
         setWorking(false);
+
+        console.groupEnd();
         return;
       }
 
@@ -509,6 +536,7 @@ export default function Home() {
             <li>Say <b>&quot;Update buy groceries to buy milk&quot;</b> or <b>&quot;Update task 1 to buy milk&quot;</b> to edit a task.</li>
             <li>Say <b>&quot;Undo&quot;</b> to revert your last action.</li>
             <li>Say <b>&quot;Search or find for milk&quot;</b> to search for todos containing milk.</li>
+            <li>Say <b>&quot;View or restore all todos&quot;</b> to restore all todos.</li>
             <li>Say <b>&quot;Filter based on low, medium or high priority, etc.&quot;</b> to filter todos as required.</li>
             <li>Say <b>&quot;Sort in ascending order based on task, priority or date creation&quot;</b> to sort accordingly.</li>
             <li>Say <b>&quot;Clear todos&quot;</b> to remove all tasks.</li>
